@@ -65,7 +65,7 @@ async function fetchLiveGames(): Promise<LiveGame[]> {
 
 export async function GET() {
   const liveGames = await fetchLiveGames()
-  const liveEspnIds = new Set(liveGames.map(g => g.espnId))
+  const liveEspnIds = new Set(liveGames.map(g => `espn-${g.espnId}`))
 
   // Get all existing AI booth rooms
   const { data: existingRooms } = await supabase
@@ -93,7 +93,7 @@ export async function GET() {
     for (const personality of PERSONALITIES) {
       // Check if this personality already has a room for this game
       const alreadyExists = existing.some(
-        r => r.espn_game_id === game.espnId &&
+        r => r.espn_game_id === `espn-${game.espnId}` &&
              r.ai_personality_id === personality.id &&
              r.status === 'live'
       )
