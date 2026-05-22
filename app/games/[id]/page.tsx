@@ -32,7 +32,7 @@ async function getRooms(gameId: string) {
 
     let q = supabase
       .from('broadcast_rooms')
-      .select(`*, profiles (username, display_name, avatar_emoji)`)
+      .select(`*, profiles!left (username, display_name, avatar_emoji)`)
       .in('status', ['live', 'countdown'])
       .order('listener_count', { ascending: false })
 

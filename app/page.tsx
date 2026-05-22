@@ -34,7 +34,7 @@ async function getLiveRooms() {
     const db = createServerSupabaseClient()
     const { data } = await db
       .from('broadcast_rooms')
-      .select(`*, profiles (username, display_name, avatar_emoji, avatar_url), games (league, home_team, away_team, status)`)
+      .select(`*, profiles!left (username, display_name, avatar_emoji, avatar_url), games!left (league, home_team, away_team, status)`)
       .in('status', ['live', 'countdown'])
       .order('listener_count', { ascending: false })
       .limit(8)
