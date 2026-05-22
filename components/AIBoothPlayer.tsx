@@ -25,7 +25,7 @@ interface AIBoothPlayerProps {
   isPrimary: boolean  // only one listener should poll; others receive via realtime
 }
 
-const POLL_INTERVAL_MS = 12000 // poll every 12 seconds
+const POLL_INTERVAL_MS = 18000 // poll every 18 seconds
 
 export default function AIBoothPlayer({
   gameId, espnId, league, roomId, personalityId, onPersonalityChange, isPrimary
@@ -36,26 +36,47 @@ export default function AIBoothPlayer({
   const [, setScore] = useState<{ home: number; away: number; period: number; clock: string } | null>(null)
   const lastSeenRef = useRef<string>('')
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const audioQueueRef = useRef<Commentary[]>([])
+  const isPlayingRef = useRef(false)
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const supabase = getSupabaseClient()
 
-  const playCommentary = useCallback((item: Commentary) => {
+  const playNextInQueue = useCallback(() => {
+    if (isPlayingRef.current || audioQueueRef.current.length === 0) return
+    const item = audioQueueRef.current.shift()!
     setCommentary(item)
     setLog(prev => [item, ...prev].slice(0, 10))
 
     if (item.audioUrl) {
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current.src = ''
-      }
+      isPlayingRef.current = true
+      setIsPlaying(true)
       const audio = new Audio(item.audioUrl)
       audioRef.current = audio
-      audio.onplay = () => setIsPlaying(true)
-      audio.onended = () => setIsPlaying(false)
-      audio.onerror = () => setIsPlaying(false)
-      audio.play().catch(() => {})
+      audio.onended = () => {
+        isPlayingRef.current = false
+        setIsPlaying(false)
+        // Play next item in queue after a short breath
+        setTimeout(playNextInQueue, 800)
+      }
+      audio.onerror = () => {
+        isPlayingRef.current = false
+        setIsPlaying(false)
+        setTimeout(playNextInQueue, 800)
+      }
+      audio.play().catch(() => {
+        isPlayingRef.current = false
+        setIsPlaying(false)
+      })
+    } else {
+      // Text-only fallback — show for 4 seconds then advance
+      setTimeout(playNextInQueue, 4000)
     }
   }, [])
+
+  const playCommentary = useCallback((item: Commentary) => {
+    audioQueueRef.current.push(item)
+    playNextInQueue()
+  }, [playNextInQueue])
 
   // Poll ESPN + generate commentary (only the "primary" listener does this)
   const poll = useCallback(async () => {
