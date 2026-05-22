@@ -25,7 +25,7 @@ interface AIBoothPlayerProps {
   isPrimary: boolean  // only one listener should poll; others receive via realtime
 }
 
-const POLL_INTERVAL_MS = 22000 // poll every 22 seconds
+const POLL_INTERVAL_MS = 12000 // poll every 12 seconds
 
 export default function AIBoothPlayer({
   gameId, espnId, league, roomId, personalityId, onPersonalityChange, isPrimary

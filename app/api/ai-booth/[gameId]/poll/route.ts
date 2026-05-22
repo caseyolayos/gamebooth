@@ -28,55 +28,58 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ gam
   const summary = await getGameSummary(espnId ?? gameId.replace('espn-', ''), league ?? 'NFL')
   if (!summary) return NextResponse.json({ error: 'Could not fetch game data' }, { status: 502 })
 
-  // Find plays we haven't commented on yet
+  // Find new plays
   const newPlays = getNewPlays(summary.plays, lastSeenSequence)
-  if (newPlays.length === 0) {
-    return NextResponse.json({
-      commentary: null,
-      lastSeenSequence,
-      score: { home: summary.homeScore, away: summary.awayScore },
-    })
-  }
-
-  // Pick the most interesting play (scoring plays first, otherwise most recent)
-  const targetPlay = newPlays.find(p => p.scoringPlay) ?? newPlays[newPlays.length - 1]
   const newLastSeen = summary.plays[summary.plays.length - 1]?.sequenceNumber ?? lastSeenSequence
 
-  // Build context for the LLM
-  const gameContext = `Game: ${summary.awayTeam} (${summary.awayScore}) @ ${summary.homeTeam} (${summary.homeScore}), ${summary.period > 0 ? `Period/Quarter ${summary.period}` : ''} ${summary.clock}`
-  const playContext = `Play: ${targetPlay.text}`
+  // Pick target play or use filler if no new plays
+  const targetPlay = newPlays.find(p => p.scoringPlay) ?? newPlays[newPlays.length - 1] ?? null
+  const isFiller = targetPlay === null
 
-  // Generate commentary via GPT-4o
+  // Build prompt
+  const gameContext = `Game: ${summary.awayTeam} (${summary.awayScore}) @ ${summary.homeTeam} (${summary.homeScore})${summary.period > 0 ? `, Period ${summary.period}` : ''}${summary.clock ? ` — ${summary.clock}` : ''}`
+
+  const prompt = isFiller
+    ? `${gameContext}\n\nThere's a pause in the action. ${personality.fillerPrompt}`
+    : `${gameContext}\nPlay: ${targetPlay!.text}\n\nGive your commentary on this play.`
+
+  const systemPrompt = isFiller ? personality.fillerPrompt : personality.systemPrompt
+
+  // Generate commentary
   const completion = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
-      { role: 'system', content: personality.systemPrompt },
-      { role: 'user', content: `${gameContext}\n${playContext}\n\nGive your commentary on this play.` },
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: prompt },
     ],
-    max_tokens: 120,
-    temperature: 0.9,
+    max_tokens: 100,
+    temperature: 0.92,
   })
 
   const commentaryText = completion.choices[0]?.message?.content?.trim() ?? ''
   if (!commentaryText) return NextResponse.json({ commentary: null, lastSeenSequence: newLastSeen })
 
-  // Generate audio via ElevenLabs
+  // Generate audio via ElevenLabs with proper voice settings
   let audioUrl: string | null = null
   try {
     const audioStream = await elevenlabs.generate({
       voice: personality.voiceId,
       text: commentaryText,
-      model_id: 'eleven_turbo_v2_5',
+      model_id: 'eleven_multilingual_v2',
+      voice_settings: {
+        stability: personality.voiceSettings.stability,
+        similarity_boost: personality.voiceSettings.similarity_boost,
+        style: personality.voiceSettings.style,
+        use_speaker_boost: personality.voiceSettings.use_speaker_boost,
+      },
     })
 
-    // Collect stream into buffer
     const chunks: Buffer[] = []
     for await (const chunk of audioStream) {
       chunks.push(Buffer.from(chunk))
     }
     const audioBuffer = Buffer.concat(chunks)
 
-    // Upload to Supabase Storage
     const filename = `${roomId}/${Date.now()}-${personalityId}.mp3`
     const { error: uploadError } = await supabase.storage
       .from('ai-commentary')
@@ -88,10 +91,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ gam
     }
   } catch (err) {
     console.error('ElevenLabs error:', err)
-    // Continue without audio — text-only fallback
   }
 
-  // Store in DB and broadcast via Supabase realtime
+  // Store + broadcast via Supabase realtime
   const { data: commentary } = await supabase
     .from('ai_commentary')
     .insert({
@@ -102,8 +104,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ gam
       personality_emoji: personality.emoji,
       text: commentaryText,
       audio_url: audioUrl,
-      play_text: targetPlay.text,
-      is_scoring_play: targetPlay.scoringPlay,
+      play_text: targetPlay?.text ?? null,
+      is_scoring_play: targetPlay?.scoringPlay ?? false,
     })
     .select()
     .single()
@@ -116,10 +118,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ gam
       personalityId,
       personalityName: personality.name,
       personalityEmoji: personality.emoji,
-      playText: targetPlay.text,
-      isScoringPlay: targetPlay.scoringPlay,
+      playText: targetPlay?.text ?? null,
+      isScoringPlay: targetPlay?.scoringPlay ?? false,
+      isFiller,
     },
     lastSeenSequence: newLastSeen,
-    score: { home: summary.homeScore, away: summary.awayScore, period: summary.period, clock: summary.clock },
+    score: {
+      home: summary.homeScore,
+      away: summary.awayScore,
+      period: summary.period,
+      clock: summary.clock,
+    },
   })
 }
