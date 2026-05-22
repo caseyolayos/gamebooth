@@ -74,9 +74,9 @@ export default function RoomView({ room, syncMarker: initialSyncMarker, schedule
   const [showDebrief, setShowDebrief] = useState(false)
   const [debriefData, setDebriefData] = useState<{ recordingUrl: string | null; peakListeners: number } | null>(null)
   const peakListenersRef = useRef(0)
-  const isAiBooth = !!room.is_ai_booth
-  const [aiBoothEnabled, setAiBoothEnabled] = useState(!!room.is_ai_booth)
-  const [aiPersonality, setAiPersonality] = useState(room.ai_personality_id ?? 'president')
+  const isAiBooth = !!room.is_ai_booth || (!room.broadcaster_id && room.livekit_room_name?.startsWith('ai-'))
+  const [aiBoothEnabled, setAiBoothEnabled] = useState(isAiBooth)
+  const [aiPersonality, setAiPersonality] = useState(room.ai_personality_id ?? room.vibe_tag ?? 'president')
   const [isPrimaryPoller, setIsPrimaryPoller] = useState(false)
 
   const recording = useRecording(room.id, user?.id ?? '')
