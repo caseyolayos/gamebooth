@@ -111,7 +111,7 @@ export async function GET() {
           is_ai_booth: true,
           ai_personality_id: personality.id,
           broadcaster_id: null,
-          livekit_room_name: `ai-${personality.id}-${game.espnId}`,
+          livekit_room_name: `ai-${personality.id}-${game.espnId}-v2`,
           listener_count: 0,
         })
         .select('id')
