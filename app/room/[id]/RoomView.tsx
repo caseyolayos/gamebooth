@@ -74,15 +74,16 @@ export default function RoomView({ room, syncMarker: initialSyncMarker, schedule
   const [showDebrief, setShowDebrief] = useState(false)
   const [debriefData, setDebriefData] = useState<{ recordingUrl: string | null; peakListeners: number } | null>(null)
   const peakListenersRef = useRef(0)
-  const [aiBoothEnabled, setAiBoothEnabled] = useState(false)
-  const [aiPersonality, setAiPersonality] = useState('president')
+  const isAiBooth = !!room.is_ai_booth
+  const [aiBoothEnabled, setAiBoothEnabled] = useState(!!room.is_ai_booth)
+  const [aiPersonality, setAiPersonality] = useState(room.ai_personality_id ?? 'president')
   const [isPrimaryPoller, setIsPrimaryPoller] = useState(false)
 
   const recording = useRecording(room.id, user?.id ?? '')
 
   const supabase = getSupabaseClient()
   const isBroadcaster = user?.id === room.broadcaster_id
-  const broadcaster = room.profiles
+  const broadcaster = room.is_ai_booth ? null : room.profiles
   const game = room.games ?? espnGame
 
   useEffect(() => {
@@ -743,20 +744,22 @@ export default function RoomView({ room, syncMarker: initialSyncMarker, schedule
             </div>
             {game && (
               <div className="mb-4 space-y-3">
-                <button
-                  onClick={() => setAiBoothEnabled(v => !v)}
-                  className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all"
-                  style={aiBoothEnabled
-                    ? { background: 'rgba(255,69,0,0.15)', color: '#FF4500', border: '1px solid rgba(255,69,0,0.4)' }
-                    : { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.1)' }
-                  }
-                >
-                  🤖 {aiBoothEnabled ? 'AI Booth On' : 'Enable AI Booth'}
-                </button>
+                {!isAiBooth && (
+                  <button
+                    onClick={() => setAiBoothEnabled(v => !v)}
+                    className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all"
+                    style={aiBoothEnabled
+                      ? { background: 'rgba(255,69,0,0.15)', color: '#FF4500', border: '1px solid rgba(255,69,0,0.4)' }
+                      : { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.1)' }
+                    }
+                  >
+                    🤖 {aiBoothEnabled ? 'AI Booth On' : 'Enable AI Booth'}
+                  </button>
+                )}
                 {aiBoothEnabled && (
                   <AIBoothPlayer
-                    gameId={game.id ?? ''}
-                    espnId={game.espn_id ?? game.id?.replace('espn-', '') ?? ''}
+                    gameId={room.espn_game_id ?? game.id ?? ''}
+                    espnId={(room.espn_game_id ?? game.id ?? '').replace('espn-', '')}
                     league={game.league ?? 'NFL'}
                     roomId={room.id}
                     personalityId={aiPersonality}
@@ -895,20 +898,22 @@ export default function RoomView({ room, syncMarker: initialSyncMarker, schedule
           )}
           {!isBroadcaster && game && (
             <>
-              <button
-                onClick={() => setAiBoothEnabled(v => !v)}
-                className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all"
-                style={aiBoothEnabled
-                  ? { background: 'rgba(255,69,0,0.15)', color: '#FF4500', border: '1px solid rgba(255,69,0,0.4)' }
-                  : { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.1)' }
-                }
-              >
-                🤖 {aiBoothEnabled ? 'AI Booth On' : 'Enable AI Booth'}
-              </button>
+              {!isAiBooth && (
+                <button
+                  onClick={() => setAiBoothEnabled(v => !v)}
+                  className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all"
+                  style={aiBoothEnabled
+                    ? { background: 'rgba(255,69,0,0.15)', color: '#FF4500', border: '1px solid rgba(255,69,0,0.4)' }
+                    : { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.1)' }
+                  }
+                >
+                  🤖 {aiBoothEnabled ? 'AI Booth On' : 'Enable AI Booth'}
+                </button>
+              )}
               {aiBoothEnabled && (
                 <AIBoothPlayer
-                  gameId={game.id ?? game.espn_id ?? ''}
-                  espnId={game.espn_id ?? game.id?.replace('espn-', '') ?? ''}
+                  gameId={room.espn_game_id ?? game.id ?? ''}
+                  espnId={(room.espn_game_id ?? game.id ?? '').replace('espn-', '')}
                   league={game.league ?? 'NFL'}
                   roomId={room.id}
                   personalityId={aiPersonality}
