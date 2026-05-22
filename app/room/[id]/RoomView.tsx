@@ -746,7 +746,7 @@ export default function RoomView({ room, syncMarker: initialSyncMarker, schedule
               <div className="mb-4 space-y-3">
                 {!isAiBooth && (
                   <button
-                    onClick={() => setAiBoothEnabled(v => !v)}
+                    onClick={() => setAiBoothEnabled((v: boolean) => !v)}
                     className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all"
                     style={aiBoothEnabled
                       ? { background: 'rgba(255,69,0,0.15)', color: '#FF4500', border: '1px solid rgba(255,69,0,0.4)' }
@@ -900,7 +900,7 @@ export default function RoomView({ room, syncMarker: initialSyncMarker, schedule
             <>
               {!isAiBooth && (
                 <button
-                  onClick={() => setAiBoothEnabled(v => !v)}
+                  onClick={() => setAiBoothEnabled((v: boolean) => !v)}
                   className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all"
                   style={aiBoothEnabled
                     ? { background: 'rgba(255,69,0,0.15)', color: '#FF4500', border: '1px solid rgba(255,69,0,0.4)' }
