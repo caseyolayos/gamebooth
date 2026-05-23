@@ -12,7 +12,7 @@ import VolumeMeter from '@/components/VolumeMeter'
 import BroadcastTips from '@/components/BroadcastTips'
 import BroadcastDebrief from '@/components/BroadcastDebrief'
 import { useRecording } from '@/hooks/useRecording'
-import AIBoothPlayer from '@/components/AIBoothPlayer'
+// import AIBoothPlayer from '@/components/AIBoothPlayer' // AI Booth paused
 
 interface RoomViewProps {
   room: any
@@ -74,10 +74,7 @@ export default function RoomView({ room, syncMarker: initialSyncMarker, schedule
   const [showDebrief, setShowDebrief] = useState(false)
   const [debriefData, setDebriefData] = useState<{ recordingUrl: string | null; peakListeners: number } | null>(null)
   const peakListenersRef = useRef(0)
-  const isAiBooth = !!room.is_ai_booth || (!room.broadcaster_id && room.livekit_room_name?.startsWith('ai-'))
-  const [aiBoothEnabled, setAiBoothEnabled] = useState(isAiBooth)
-  const [aiPersonality, setAiPersonality] = useState(room.ai_personality_id ?? room.vibe_tag ?? 'president')
-  const [isPrimaryPoller, setIsPrimaryPoller] = useState(false)
+  // const [isPrimaryPoller, setIsPrimaryPoller] = useState(false) // AI Booth paused
 
   const recording = useRecording(room.id, user?.id ?? '')
 
@@ -202,19 +199,6 @@ export default function RoomView({ room, syncMarker: initialSyncMarker, schedule
   useEffect(() => {
     if (listenerCount > peakListenersRef.current) peakListenersRef.current = listenerCount
   }, [listenerCount])
-
-  // Elect one listener as the primary poller for AI booth
-  useEffect(() => {
-    if (!isBroadcaster && aiBoothEnabled) {
-      // Staggered election: first visitor to check in becomes primary
-      const key = `ai-primary:${room.id}`
-      const existing = sessionStorage.getItem(key)
-      if (!existing) {
-        sessionStorage.setItem(key, '1')
-        setIsPrimaryPoller(true)
-      }
-    }
-  }, [aiBoothEnabled, isBroadcaster, room.id])
 
   useEffect(() => {
     if (isBroadcaster && roomStatus === 'live' && !recording.state.isRecording && user?.id) {
@@ -742,33 +726,7 @@ export default function RoomView({ room, syncMarker: initialSyncMarker, schedule
             <div className="mb-4">
               <SyncPanel roomId={room.id} syncMarker={syncMarker} offsetMs={offsetMs} onOffsetChange={handleOffsetChange} />
             </div>
-            {game && (
-              <div className="mb-4 space-y-3">
-                {!isAiBooth && (
-                  <button
-                    onClick={() => setAiBoothEnabled((v: boolean) => !v)}
-                    className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all"
-                    style={aiBoothEnabled
-                      ? { background: 'rgba(255,69,0,0.15)', color: '#FF4500', border: '1px solid rgba(255,69,0,0.4)' }
-                      : { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.1)' }
-                    }
-                  >
-                    🤖 {aiBoothEnabled ? 'AI Booth On' : 'Enable AI Booth'}
-                  </button>
-                )}
-                {aiBoothEnabled && (
-                  <AIBoothPlayer
-                    gameId={room.espn_game_id ?? game.id ?? ''}
-                    espnId={(room.espn_game_id ?? game.id ?? '').replace('espn-', '')}
-                    league={game.league ?? 'NFL'}
-                    roomId={room.id}
-                    personalityId={aiPersonality}
-                    onPersonalityChange={setAiPersonality}
-                    isPrimary={isPrimaryPoller}
-                  />
-                )}
-              </div>
-            )}
+
             <div className="flex gap-2 mb-6">
               <button onClick={() => setShowShare(true)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
                 style={{ background: 'rgba(242,135,30,0.1)', color: '#F2871E', border: '1px solid rgba(242,135,30,0.3)' }}>
@@ -896,33 +854,7 @@ export default function RoomView({ room, syncMarker: initialSyncMarker, schedule
           {!isBroadcaster && (
             <SyncPanel roomId={room.id} syncMarker={syncMarker} offsetMs={offsetMs} onOffsetChange={handleOffsetChange} />
           )}
-          {!isBroadcaster && game && (
-            <>
-              {!isAiBooth && (
-                <button
-                  onClick={() => setAiBoothEnabled((v: boolean) => !v)}
-                  className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all"
-                  style={aiBoothEnabled
-                    ? { background: 'rgba(255,69,0,0.15)', color: '#FF4500', border: '1px solid rgba(255,69,0,0.4)' }
-                    : { background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.1)' }
-                  }
-                >
-                  🤖 {aiBoothEnabled ? 'AI Booth On' : 'Enable AI Booth'}
-                </button>
-              )}
-              {aiBoothEnabled && (
-                <AIBoothPlayer
-                  gameId={room.espn_game_id ?? game.id ?? ''}
-                  espnId={(room.espn_game_id ?? game.id ?? '').replace('espn-', '')}
-                  league={game.league ?? 'NFL'}
-                  roomId={room.id}
-                  personalityId={aiPersonality}
-                  onPersonalityChange={setAiPersonality}
-                  isPrimary={isPrimaryPoller}
-                />
-              )}
-            </>
-          )}
+
           {isBroadcaster && (
             <button onClick={() => setShowSetMarkerModal(true)} className="w-full py-2.5 rounded-xl text-sm font-semibold"
               style={{ background: 'rgba(255,193,7,0.15)', color: '#FFC107', border: '1px solid rgba(255,193,7,0.3)' }}>
